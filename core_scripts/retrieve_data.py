@@ -30,19 +30,28 @@ def parse_args(arg_list=None):
 
 
 def main(model,experiment,member, server=None):
+    print(model,experiment,member,server)
+    # cluster = LocalCluster(n_workers=10, memory_limit='8GiB')
+    # client = Client(cluster)
+    # print('Access dask dashboard: ', client.dashboard_link)
+    
     for variable in ['ua','va']:
+        print("Retrieving variable'"+variable+"'")
         retrieve_data_single_variable(model=model, 
                     experiment=experiment,
                     member_id=member,
                     variable=variable,
                     select_plev=True,
                     plev=85000, server=server,)
+        
+    print("Retrieving variable'zg'")
     retrieve_data_single_variable(model=model, 
                 experiment=experiment,
                 member_id=member,
                 variable='zg',
                 select_plev=True,
                 plev=50000, server=server,)
+    print("Retrieving variable'pr'")
     retrieve_data_single_variable(model=model, 
             experiment=experiment,
             member_id=member,
@@ -54,6 +63,7 @@ def retrieve_data_single_variable(model, experiment, member_id, variable, select
                                 #   lon_range = (-100,60) , lat_range = (30,80),
                                    **path_kwargs):
     path = cmip.esgf.get_path_CMIP6_data(model, experiment, member_id, variable, freq='day',table='day',**path_kwargs)
+    print(path)
     if select_plev:
         chunks = dict(plev=1, lon=50, lat=50, time=365*15)
     else:
@@ -72,7 +82,7 @@ def retrieve_data_single_variable(model, experiment, member_id, variable, select
         variable_name=variable
     dates = '-'.join(ds.time.dt.strftime("%Y%m%d").isel(time=[0,-1]).values)
     file_name = f"{variable_name}_day_{model}_{experiment}_{member_id}_gn_{dates}.nc"
-    path = f'/Data/gfi/share/ModData/CMIP_EU_Precip_Precursors/raw/{model}/{variable_name}/{experiment}/'
+    path = f'/Data/gfi/scratch/jlu044/CMIP_EU_Precip_Precursors/raw/{model}/{variable_name}/{experiment}/'
     if not os.path.exists(path):
         os.makedirs(path)
         subprocess.run(["chmod", "-R", "g+rwx", path], check=True)
@@ -88,4 +98,4 @@ if __name__=='__main__':
     print('Access dask dashboard: ', client.dashboard_link)
 
     
-    main(model =args.model, experiment = args.experiment,member=args.member, server=args.server)
+    main(model=args.model, experiment=args.experiment, member=args.member, server=args.server)

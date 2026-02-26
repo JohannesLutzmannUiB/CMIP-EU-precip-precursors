@@ -56,7 +56,7 @@ def parse_args(arg_list=None):
     parser.add_argument('--lags', nargs='+', type=int, default=[0],
                     help='Which lag times to use.')
 
-    parser.add_argument('--inputdir',type=str,default='/Data/gfi/share/ModData/CMIP_EU_Precip_Precursors/',
+    parser.add_argument('--inputdir',type=str,default='/Data/gfi/scratch/jlu044/CMIP_EU_Precip_Precursors/',
                         help='Directory in which to look for field data.')
     
     parser.add_argument('--auxdir',type=str,default='/Data/skd/projects/global/cmip6_precursors/aux/',
@@ -307,6 +307,16 @@ def project_onto_precursor_indices_and_save(ds,patterns,params,args):
                 da.to_netcdf(savepath)
     
     return
+
+def main(
+    model, experiment, member="",variables=['z500_detrend','u850','v850'],
+    overwrite=False, seasons=['DJF', 'MAM','JJA','SON'], regions==None,
+    lags=[0], inputdir='/Data/gfi/scratch/jlu044/CMIP_EU_Precip_Precursors/',
+    auxdir='/Data/gfi/share/ModData/CMIP_EU_Precip_Precursors/aux/',
+    outputdir='/Data/gfi/scratch/jlu044/CMIP_EU_Precip_Precursors/indices/', 
+    precursorid='standard', refid='ERA5', debug=False)
+    pass
+
 
 var_name_dict={
     'z500_detrend':'zg_detrend',
