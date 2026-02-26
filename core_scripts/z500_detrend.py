@@ -22,7 +22,7 @@ def parse_args():
                         help = 'root directory')
     parser.add_argument("--varname", default="zg", 
                         help = 'name of the variable to detrend')
-    parser.add_argument("--era5_cycle", default="/Data/skd/projects/global/cmip6_precursors/aux/cycles/ERA5.nc", 
+    parser.add_argument("--era5_cycle", default="/Data/gfi/share/ModData/CMIP_EU_Precip_Precursors/aux/cycles/ERA5.nc", 
                         help = 'file with the ERA5 seasonal cycle')
     parser.add_argument('--latmin', type=float, default=30, 
                         help='min lat')
@@ -32,35 +32,47 @@ def parse_args():
     return parser.parse_args()
 
 
-def main(args):
+# def main(args):
+def main(
+    model, experiment, member,
+    basedir="/Data/gfi/scratch/jlu044/CMIP_EU_Precip_Precursors/raw",
+    varname="zg",
+    era5_cycle=("/Data/gfi/share/ModData/CMIP_EU_Precip_Precursors/"
+                +"aux/cycles/ERA5.nc"), latmin=30, latmax=85):
     
-    input_dir = f"{args.basedir}/{args.model}/z500/{args.experiment}/"
-    file_dir = glob.glob(f"{input_dir}/*{args.member}*.nc")
-    if len(file_dir) > 0:
-        file = file_dir[0].split('/')[-1]
+    input = f"{basedir}/{model}/z500/{experiment}/"
+    # files=[file for file in os.listdir(input) if file.endswith('.nc')]
+    files=[file for file in os.listdir(input) if member in file]
+    if len(files) == 1:
+        file = files[0]
+    elif len(files) > 1:
+        raise ValueError("Ambiguous Input: more than one matching file path detected")
+    else:
+        raise ValueError("No matching file found")
     
-    input_pattern = f'{input_dir}/{file}'
+    input_pattern = f'{input}/{file}'
     date_range = file.split('_')[6]
-    date_start, date_end = date_range.split('-')
-    date_end = date_end.split('.')[0]
-    date_start = f"{date_start[:4]}-{date_start[4:6]}-{date_start[6:]}"
-    date_end = f"{date_end[:4]}-{date_end[4:6]}-{date_end[6:]}"
-    if not input_pattern :
-        raise FileNotFoundError(f"No files found in : {input_dir/input_pattern}")
+    print(date_range)
+
+    
+
+    # if not input_pattern :
+    #     raise FileNotFoundError(f"No files found in : {input/input_pattern}")
 
     ds = xr.open_dataset(input_pattern)
-    x = ds[args.varname]
+    x = ds[varname]
     x.load()
-    x = x.sel(time = slice(date_start, date_end))
+    print(date_range[0:8], date_range[9:17])
 
-    x_detrended = detrend_seasonal_cycle(x, args.era5_cycle, args.latmin, args.latmax)
-    if args.varname.split :
-        x_detrended = x_detrended.rename(f'{args.varname}_detrend')
+    x = x.sel(time = slice(date_range[0:8], date_range[9:17]))
+
+    x_detrended = detrend_seasonal_cycle(x, era5_cycle, latmin, latmax)
+    if varname.split :
+        x_detrended = x_detrended.rename(f'{varname}_detrend')
     else :
-        x_detrended = x_detrended.rename(f'{args.varname}')
-    date_start = ''.join(date_start.split('-'))
-    date_end = ''.join(date_end.split('-'))
-    output_pattern = f"{args.basedir}/{args.model}/z500_detrend/{args.experiment}/z500_detrend_day_{args.model}_{args.experiment}_{args.member}_gn_{date_start}-{date_end}.nc"
+        x_detrended = x_detrended.rename(f'{varname}')
+
+    output_pattern = f"{basedir}/{model}/z500_detrend/{experiment}/z500_detrend_day_{model}_{experiment}_{member}_gn_{date_range}.nc"
     os.makedirs(os.path.dirname(output_pattern), exist_ok=True)
     # subprocess.run(['chmod','-R','g+wrx',os.path.dirname(output_pattern)])   # add this only when dir above is created
     ds_out = x_detrended.to_dataset().assign_attrs(ds.attrs)
@@ -118,4 +130,6 @@ def detrend_seasonal_cycle(x, era5_cycle, latmin, latmax):
 if __name__ == "__main__":
     
     args = parse_args()
-    main(args)
+    main(args.model, args.experiment, args.member, basedir=args.basedir,
+         varname=args.varname, era5_cycle=args.era5_cycle, latmin=args.latmin,
+         latmax=args.latmax)
