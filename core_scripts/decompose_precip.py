@@ -198,7 +198,6 @@ if __name__=='__main__':
     args = parse_args()
 
     sys.path.append(args.auxdir)
-    print(args.auxdir)
     from decomposition import decompose_hazard_odds_ratio,decomp_to_pd_df,decomp_to_term_pd_df
 
     condition_var=args.variables
