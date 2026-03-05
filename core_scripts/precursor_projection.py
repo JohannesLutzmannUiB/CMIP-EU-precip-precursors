@@ -148,7 +148,6 @@ def load_precursor_patterns_and_params(args):
 
     #if a variable ends _detrend, we load the pattern of the base variable.
     var_names=[v.lower().split('_detrend')[0] for v in args.variables]
-
     index_names=[f'{v}_lag{l}_index_val1' for v,l in it.product(var_names,args.lags)]
     pattern_all_seasons=[]
     param_all_seasons=[]
@@ -253,12 +252,11 @@ def project_onto_precursor_indices_and_save(ds,patterns,params,args):
     
     #work out the full save directory
     outdirs=get_save_path(args)
-
+    
+    
     slices=[dict(lag=l,index_val=1) for l in args.lags]
-
     for r in args.regions:
         for s in args.seasons:
-
 
             in_season=ds['time.season']==s
             field=ds.isel(time=in_season)
@@ -277,15 +275,16 @@ def project_onto_precursor_indices_and_save(ds,patterns,params,args):
                 P=P.expand_dims('lag').assign_coords(lag=args.lags)
             except Exception as e:
                 pass
-
+            
             #generate the indices and standardise them
             IG=IndexGenerator()
             indices=IG.generate(P,field,slices=slices,
                 ix_means=param.sel(param='mean'),ix_stds=param.sel(param='std'))
-            
             #adds all metadata from index generation into each index
             #save
             for savepath,dv in zip(save_paths,list(indices.data_vars)):
+                if 'z500_detrend' in savepath:
+                    savepath = savepath.replace("z500_detrend", "z500")
                 da=indices[dv]
                 da.attrs = make_serializable_attrs(args)
                 da.to_netcdf(savepath)
@@ -301,7 +300,7 @@ var_name_dict={
 if __name__=='__main__':
 
     #use multi-core for speed
-    cluster = LocalCluster(n_workers=4, memory_limit='16GiB')
+    cluster = LocalCluster(n_workers=6, memory_limit='10GiB')
     client = Client(cluster)
     print('Access dask dashboard: ', client.dashboard_link)
     
@@ -335,6 +334,7 @@ if __name__=='__main__':
 
     #remove seasonal cycle from field data:
     targ_field=deseasonalise_field(targ_field,cycle)
-
+    if 'z500_detrend' in targ_field:
+        targ_field = targ_field.rename(z500_detrend='z500')
     #Do the projection and save them to file
     project_onto_precursor_indices_and_save(targ_field,patterns,params,args)
