@@ -178,7 +178,8 @@ def load_cycle(args):
 
     #here we do treat detrended variables differently, so this is
     #different to the corresponding line in load_precursor_patterns_and_params
-    var_names=[v.lower() for v in args.variables]
+    #Renaming z500 to match variables in ERA5 cycle data.
+    var_names=[v.lower().split('_detrend')[0] for v in args.variables]
     cycle=xr.open_dataset(cycle_path,chunks='auto')[var_names]
     return cycle.load()
 
@@ -300,7 +301,7 @@ var_name_dict={
 if __name__=='__main__':
 
     #use multi-core for speed
-    cluster = LocalCluster(n_workers=6, memory_limit='10GiB')
+    cluster = LocalCluster(n_workers=4, memory_limit='16GiB')
     client = Client(cluster)
     print('Access dask dashboard: ', client.dashboard_link)
     
@@ -324,6 +325,11 @@ if __name__=='__main__':
 
     #load model field data and put it on a 1deg grid over the precursor domain
     targ_field=load_input_fields(args,var_name_dict)
+    # Renaming z500_detrend into z500 to match cycle variable name
+    for data_vars in targ_field.data_vars:
+        if data_vars == 'z500_detrend':
+            targ_field = targ_field.rename({data_vars: 'z500'})
+
     targ_field=ensure_lon_180(targ_field)
     targ_field=interp_to_1degree_grid_over_precursor_domain(targ_field)
 

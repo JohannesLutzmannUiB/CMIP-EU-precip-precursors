@@ -59,7 +59,7 @@ def parse_args(arg_list=None):
     parser.add_argument('--inputdir',type=str,default='/Data/skd/projects/global/cmip6_precursors/outputs/indices/',
                         help='Directory in which to look for indices.')
     
-    parser.add_argument('--auxdir',type=str,default='/Data/skd/projects/global/cmip6_precursors/aux/',
+    parser.add_argument('--auxdir',type=str,default='/home/rogui7909/code/CMIP_precursors/scripts/CMIP-EU-precip-precursors/aux',
                     help='Directory in which to look for decomposition.py')
     
     parser.add_argument('--savedir',type=str,default='/Data/skd/projects/global/cmip6_precursors/outputs/decompositions/',
@@ -83,8 +83,9 @@ def get_ref_data(args):
                 a2.append(da.assign_coords(season=s))
             a1.append(xr.concat(a2,'season').assign_coords(region_id=r))
         da=xr.concat(a1,'region_id')
-        ds.append(da.rename(v))
-    ds=xr.merge(ds)
+        # ds.append(da.rename(v))
+        ds.append(da)
+    ds=xr.merge(ds, compat='override')
 
     y0,y1=args.hist_period
     # hist_period=np.arange(y0,y1+1)
@@ -105,7 +106,7 @@ def get_hist_data(args):
     for v in vars:
         vdir=f'{bp}{v}/{args.historical_experiment}/'
         os.makedirs(vdir,exist_ok=True)
-        subprocess.run(["chmod", "-R", "g+rwx", vdir], check=True)
+        # subprocess.run(["chmod", "-R", "g+rwx", vdir], check=True)
         a0=[]
         for mem in mems:
             if not_ens:
@@ -123,14 +124,14 @@ def get_hist_data(args):
                     a2.append(da.assign_coords(season=s))
                 a1.append(xr.concat(a2,'season').assign_coords(region_id=r))
 
-                a1=xr.concat(a1,'region_id')
-                if not not_ens: a1=a1.assign_coords(member=mem)
+            a1=xr.concat(a1,'region_id')
+            if not not_ens: a1=a1.assign_coords(member=mem)
             a0.append(a1)
 
-        a0=xr.concat(a0,'member').rename(v)
+        a0=xr.concat(a0,'member')#.rename(v)
         ds.append(a0)
 
-    ds=xr.merge(ds)
+    ds=xr.merge(ds, compat='override')
 
     y0,y1=args.hist_period
     # hist_period=np.arange(y0,y1+1)
@@ -155,7 +156,7 @@ def get_future_data(args):
     for v in vars:
         vdir=f'{bp}{v}/{args.future_experiment}/'
         os.makedirs(vdir,exist_ok=True)
-        subprocess.run(["chmod", "-R", "g+rwx", vdir], check=True)
+        # subprocess.run(["chmod", "-R", "g+rwx", vdir], check=True)
         a0=[]
         for mem in mems:
             if not_ens:
@@ -172,14 +173,14 @@ def get_future_data(args):
                     a2.append(da.assign_coords(season=s))
                 a1.append(xr.concat(a2,'season').assign_coords(region_id=r))
 
-                a1=xr.concat(a1,'region_id')
-                if not not_ens: a1=a1.assign_coords(member=mem)
+            a1=xr.concat(a1,'region_id')
+            if not not_ens: a1=a1.assign_coords(member=mem)
             a0.append(a1)
 
-        a0=xr.concat(a0,'member').rename(v)
+        a0=xr.concat(a0,'member')#.rename(v)
         ds.append(a0)
 
-    ds=xr.merge(ds)
+    ds=xr.merge(ds, compat='override')
 
     y0,y1=args.future_period
     # future_period=np.arange(y0,y1+1)
@@ -189,15 +190,53 @@ def get_future_data(args):
 
 def get_savepaths(args,s,r,suff='csv'):
     s1=f'{args.savedir}/{args.model}/'
+
     
     s2=f'{s}_region{r}.{suff}'
     return s1+'decomp_'+s2, s1+'terms_'+s2
 
-if __name__=='__main__':
 
-    args = parse_args()
+def run_decompose_precip(
+    model, future_experiment, eventthreshold=0.95, nprecursorbins=10,
+    seasons=['DJF', 'MAM','JJA','SON'], regions=None, members='', referencemodel='ERA5',
+    historical_experiment='historical', hist_period=[1979,2014], future_period=[2060,2100],
+    variables=['z500','u850','v850'], hazardvariable='pr', overwrite=False,
+    inputdir='/Data/skd/projects/global/cmip6_precursors/outputs/indices/',
+    auxdir='/Data/skd/projects/global/cmip6_precursors/aux/',
+    savedir='/Data/skd/projects/global/cmip6_precursors/outputs/decompositions/'
+):
+    
+    arg_list = (
+        ["--model", model, "--future_experiment", future_experiment,
+        '--eventthreshold', str(eventthreshold), '--nprecursorbins',
+         str(nprecursorbins), "--seasons"]+seasons
+        +['--members', members, '--referencemodel', referencemodel,
+          '--historical_experiment', historical_experiment, "--variables"]
+        +variables+['--hazardvariable', hazardvariable, '--inputdir', inputdir,
+                    '--auxdir', auxdir, '--savedir', savedir])
+    
+    if overwrite:
+        arg_list.append("--overwrite")
 
+    if not regions is None:
+        arg_list+=["--regions"]+[str(r) for r in regions]
+
+    if type(hist_period) is list:
+        if len(hist_period)==2:
+            arg_list+=["--hist_period"]+[str(h) for h in hist_period]
+
+    if type(future_period) is list:
+        if len(future_period)==2:
+            arg_list+=["--future_period"]+[str(f) for f in future_period]
+
+    args = parse_args(arg_list)
+    main(args)
+    return args
+            
+    
+def main(args):
     sys.path.append(args.auxdir)
+    print(args.auxdir)
     from decomposition import decompose_hazard_odds_ratio,decomp_to_pd_df,decomp_to_term_pd_df
 
     condition_var=args.variables
@@ -213,7 +252,7 @@ if __name__=='__main__':
 
     #use a pre-established set of regions if none specified
     if args.regions is None:
-        # region 2 was an uninhabited island so we dropped it.
+        #region 2 was an uninhabited island so we dropped it.
         args.regions=[1,*np.arange(3,40)] 
     else:
         pass
@@ -226,40 +265,49 @@ if __name__=='__main__':
     p=args.eventthreshold
     bin_num=args.nprecursorbins
     model=args.model
-    for s in args.seasons:
-        for r in args.regions:
-            decomp_path,term_path=get_savepaths(args,s,r)
-
-            rd=ref_data.sel(season=s,region_id=r)
-            hd=hist_data.sel(season=s,region_id=r)
-            if future_data is None:
-                fd=hd
-            else:
-                fd=future_data.sel(season=s,region_id=r)
+    for s in args.seasons[:]:
+        for r in args.regions[:]:
+            try:
+                decomp_path,term_path=get_savepaths(args,s,r)
+                rd=ref_data.sel(season=s,region_id=r).rename(tp='pr')
+                hd=hist_data.sel(season=s,region_id=r)
+                if future_data is None:
+                    fd=hd
+                else:
+                    fd=future_data.sel(season=s,region_id=r)
+                hd = xr.concat([hd.sel(member=k, drop=True) for k in hd.member], dim='time')
+                fd = xr.concat([fd.sel(member=k, drop=True) for k in fd.member], dim='time')
+                decomposed_hazard=decompose_hazard_odds_ratio(rd.dropna('time'),
+                                                              hd.dropna('time'),
+                                                              fd.dropna('time'),                                             
+                                                            hazard_var,condition_var,
+                                                            make_h_var_cat=make_h_var_cat,
+                                                            p_dvs=p_dvs,
+                                                            quantile=p,bin_num=bin_num)
+                #format the decomposed quantities
+                decomposed_df=decomp_to_pd_df(decomposed_hazard,model,s,r)
+                #compute and format decomposition terms.
+                #We don't currently save this.
+                terms_df=decomp_to_term_pd_df(decomposed_hazard,model,s,r)
                 
-            decomposed_hazard=decompose_hazard_odds_ratio(rd,hd,fd,                                                      
-                                                        hazard_var,condition_var,
-                                                        make_h_var_cat=make_h_var_cat,
-                                                        p_dvs=p_dvs,
-                                                        quantile=p,bin_num=bin_num)
-            #format the decomposed quantities
-            decomposed_df=decomp_to_pd_df(decomposed_hazard.values,model,s,r)
+                #sum the terms over all bins, which we do save:
+                summed_terms_df=terms_df.groupby(
+                    ["model","season","region_id", "source", "term"], 
+                    as_index=False
+                )["value"].sum()
+                
+                os.makedirs('/'.join(decomp_path.split('/')[:-1]), exist_ok=True)
+                os.makedirs('/'.join(term_path.split('/')[:-1]), exist_ok=True)
+                #subprocess.run(["chmod", "-R", "g+rwx", ('/'.join(decomp_path.split('/')[:-1]))], check=True)
+                #subprocess.run(["chmod", "-R", "g+rwx", '/'.join(term_path.split('/')[:-1])], check=True)
+                decomposed_df.to_csv(decomp_path)
+                summed_terms_df.to_csv(term_path)
+                print(f"Saved decomposition and terms for season {s} region {r}: {term_path}")
+            except Exception as e:
+                print(s,r, e)
 
-            #compute and format decomposition terms.
-            #We don't currently save this.
-            terms_df=decomp_to_term_pd_df(decomposed_hazard.values,model,s,r)
-            
-            #sum the terms over all bins, which we do save:
-            summed_terms_df=terms_df.groupby(
-                ["model","season","region_id", "source", "term"], 
-                as_index=False
-            )["value"].sum()
-            
-            os.makedirs('/'.join(decomp_path.split('/')[:-1]), exist_ok=True)
-            os.makedirs('/'.join(term_path.split('/')[:-1]), exist_ok=True)
-            subprocess.run(["chmod", "-R", "g+rwx", ('/'.join(decomp_path.split('/')[:-1]))], check=True)
-            subprocess.run(["chmod", "-R", "g+rwx", '/'.join(term_path.split('/')[:-1])], check=True)
 
-            decomposed_df.to_csv(decomp_path)
-            summed_terms_df.to_csv(term_path)
+if __name__=='__main__':
 
+    args = parse_args()
+    main(args)

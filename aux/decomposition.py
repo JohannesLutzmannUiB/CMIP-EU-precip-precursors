@@ -1,11 +1,16 @@
 import xarray as xr
 import numpy as np
+import pandas as pd
 from sklearn.decomposition import PCA
 
-def decompose_hazard_odds_ratio(ref_ds,h_model_ds,f_model_ds,h_var,s_var,bin_num=5,p_dvs=None,make_h_var_cat=False,quantile=None):
-    return _prep_and_decompose(binned_decomposition,return_decomp_as_dataarray,ref_ds,h_model_ds,f_model_ds,h_var,s_var,bin_num,p_dvs,make_h_var_cat,quantile)
+def decompose_hazard_odds_ratio(ref_ds,h_model_ds,
+                                f_model_ds,h_var,s_var,bin_num=5,
+                                p_dvs=None,make_h_var_cat=False,quantile=None):
+    return _prep_and_decompose(binned_decomposition,return_decomp_as_dataarray,
+                               ref_ds,h_model_ds,f_model_ds,h_var,s_var,bin_num,p_dvs,make_h_var_cat,quantile)
 
-def _prep_and_decompose(decomp_func,output_func,ref_ds,h_model_ds,f_model_ds,h_var,s_var,bin_num,p_dvs,make_h_var_cat,quantile):
+def _prep_and_decompose(decomp_func,output_func,ref_ds,
+                        h_model_ds,f_model_ds,h_var,s_var,bin_num,p_dvs,make_h_var_cat,quantile):
 
     #needed if returned with full_output, but not used.
     ref_PCA_Solver=None
@@ -23,11 +28,13 @@ def _prep_and_decompose(decomp_func,output_func,ref_ds,h_model_ds,f_model_ds,h_v
 
         pcN=int(s_var[2:])
         ref_ds,ref_PCA_Solver,PCs,EOFs=fit_PCA_to_ds(ref_ds,pcN,p_dvs)
-
-        h_model_ds[s_var]=xr.DataArray(data=apply_PCA_to_ds(h_model_ds,ref_PCA_Solver,pcN,p_dvs),
-                                       coords=dict(instance=h_model_ds.instance))
-        f_model_ds[s_var]=xr.DataArray(data=apply_PCA_to_ds(f_model_ds,ref_PCA_Solver,pcN,p_dvs),
-                                       coords=dict(instance=f_model_ds.instance))
+        h_model_ds[s_var]=xr.DataArray(
+            data=apply_PCA_to_ds(h_model_ds,ref_PCA_Solver,pcN,p_dvs),
+            coords=dict(time=h_model_ds.time))
+    
+    f_model_ds[s_var]=xr.DataArray(
+        data=apply_PCA_to_ds(f_model_ds,ref_PCA_Solver,pcN,p_dvs),
+        coords=dict(time=f_model_ds.time))
     #handle categorical event def if needed.
     if make_h_var_cat:
         if quantile is None:
@@ -421,8 +428,6 @@ def decomp_to_term_pd_df(arr,model, season, region_id):
                         "source": s1, "term": s2, "value": v})
             
     return pd.DataFrame(term_rows)
-
-
 
 
 
