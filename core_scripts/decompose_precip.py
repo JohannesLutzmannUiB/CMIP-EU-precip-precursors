@@ -34,7 +34,7 @@ def parse_args(arg_list=None):
     parser.add_argument('--regions', nargs='+', type=str, default=None,
                 help='Which regions to compute metrics for. Default is to use all regions.')
 
-    parser.add_argument('--members', type=str, default='',
+    parser.add_argument('--members', nargs='+', type=str, default='',
                         help='Which ensemble member or members to use. Defaults to assuming not an ensemble.')
     
     parser.add_argument('--referencemodel', type=str, default='ERA5',
@@ -198,11 +198,14 @@ def get_savepaths(args,s,r,suff='csv'):
 
 
 def get_final_savepaths(args, suff='csv'):
-    member = args.members if args.members else 'r1i1p1f1'
+    if type(args.members) is list:
+        member = '-'.join(args.members)
+    else:
+        member = args.members[0] if args.members else 'r1i1p1f1'
     base_dir = f'{args.savedir}/{args.model}/{member}/'
     return (
-        f'{base_dir}{args.model}_paper_terms_df.{suff}',
-        f'{base_dir}{args.model}_paper_terms_ens_df.{suff}'
+        f'{base_dir}{args.model}_{member}_paper_terms_df.{suff}',
+        f'{base_dir}{args.model}_{member}_paper_terms_ens_df.{suff}'
     )
 
 
@@ -774,12 +777,13 @@ def main(args):
     else:
         final_terms_df = pd.DataFrame(columns=final_terms_columns)
 
-    output_member = args.members if args.members else 'r1i1p1f1'
-    final_terms_members_df = final_terms_df.copy()
-    final_terms_members_df.insert(loc=5, column='member', value=output_member)
     os.makedirs(os.path.dirname(final_terms_path), exist_ok=True)
+    if type(args.members) is not list:
+        output_member = args.members if args.members else 'r1i1p1f1'
+        final_terms_members_df = final_terms_df.copy()
+        final_terms_members_df.insert(loc=5, column='member', value=output_member)
+        final_terms_members_df.to_csv(final_terms_members_path)
     final_terms_df.to_csv(final_terms_path)
-    final_terms_members_df.to_csv(final_terms_members_path)
     print(f"Saved final terms CSV: {final_terms_path}")
     print(f"Saved final member terms CSV: {final_terms_members_path}")
 
