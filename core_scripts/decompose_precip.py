@@ -189,10 +189,11 @@ def get_future_data(args):
     return ds
 
 def get_savepaths(args,s,r,suff='csv'):
-    member = args.members if args.members else 'r1i1p1f1'
+    if type(args.members) is list:
+        member = '-'.join(args.members)
+    else:
+        member = args.members[0] if args.members else 'r1i1p1f1'    
     s1=f'{args.savedir}/{args.model}/{member}/'
-
-    
     s2=f'{s}_region{r}.{suff}'
     return s1+'decomp_'+s2, s1+'terms_'+s2
 
@@ -778,8 +779,11 @@ def main(args):
         final_terms_df = pd.DataFrame(columns=final_terms_columns)
 
     os.makedirs(os.path.dirname(final_terms_path), exist_ok=True)
-    if type(args.members) is not list:
-        output_member = args.members if args.members else 'r1i1p1f1'
+    if len(args.members) ==1 :    
+        if type(args.members) is list:
+            output_member = '-'.join(args.members)
+        else:
+            output_member = args.members[0] if args.members else 'r1i1p1f1'    
         final_terms_members_df = final_terms_df.copy()
         final_terms_members_df.insert(loc=5, column='member', value=output_member)
         final_terms_members_df.to_csv(final_terms_members_path)
