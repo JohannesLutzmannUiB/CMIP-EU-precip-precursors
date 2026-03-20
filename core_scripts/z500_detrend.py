@@ -35,7 +35,7 @@ def parse_args():
 # def main(args):
 def main(
     model, experiment, member,
-    basedir="/Data/gfi/scratch/jlu044/CMIP_EU_Precip_Precursors/raw",
+    basedir="/Data/gfi/share/ModData/CMIP_EU_Precip_Precursors/raw",
     varname="zg",
     era5_cycle=("/Data/gfi/share/ModData/CMIP_EU_Precip_Precursors/"
                 +"aux/cycles/ERA5.nc"), latmin=30, latmax=85):
@@ -51,9 +51,8 @@ def main(
         raise ValueError("No matching file found")
     
     input_pattern = f'{input}/{file}'
-    date_range = file.split('_')[6]
+    date_range = file.split('_')[6].split(".")[0]
     print(date_range)
-
     
 
     # if not input_pattern :
@@ -73,6 +72,7 @@ def main(
         x_detrended = x_detrended.rename(f'{varname}')
 
     output_pattern = f"{basedir}/{model}/z500_detrend/{experiment}/z500_detrend_day_{model}_{experiment}_{member}_gn_{date_range}.nc"
+    print(output_pattern)
     os.makedirs(os.path.dirname(output_pattern), exist_ok=True)
     # subprocess.run(['chmod','-R','g+wrx',os.path.dirname(output_pattern)])   # add this only when dir above is created
     ds_out = x_detrended.to_dataset().assign_attrs(ds.attrs)

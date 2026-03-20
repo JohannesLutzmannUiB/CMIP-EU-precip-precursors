@@ -82,7 +82,7 @@ def retrieve_data_single_variable(model, experiment, member_id, variable, select
         variable_name=variable
     dates = '-'.join(ds.time.dt.strftime("%Y%m%d").isel(time=[0,-1]).values)
     file_name = f"{variable_name}_day_{model}_{experiment}_{member_id}_gn_{dates}.nc"
-    path = f'/Data/gfi/scratch/jlu044/CMIP_EU_Precip_Precursors/raw/{model}/{variable_name}/{experiment}/'
+    path = f'/Data/gfi/share/ModData/CMIP_EU_Precip_Precursors/raw/{model}/{variable_name}/{experiment}/'
     if not os.path.exists(path):
         os.makedirs(path)
         subprocess.run(["chmod", "-R", "g+rwx", path], check=True)
