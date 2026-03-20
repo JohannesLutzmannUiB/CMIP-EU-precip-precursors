@@ -5,6 +5,7 @@ import os
 import numpy as np
 from domino.core import IndexGenerator
 import itertools as it
+from tqdm import tqdm
 import subprocess
 
 ###
@@ -79,7 +80,8 @@ def get_save_path(args):
     savedirs=[f'{args.savedir}{args.model}/{v}/{args.experiment}/' for v in args.variables]
     for savedir in savedirs:
         os.makedirs(savedir,exist_ok=True)
-        subprocess.run(['chmod','-R','g+wrx',savedir])
+        # only tun if dir was just made, otherwise we might be changing permissions of a dir that other processes are writing to.
+        # subprocess.run(['chmod','-R','g+wrx',savedir])
     
     if args.member!='':
         savedirs=[dir+f'member_{args.member}_' for dir in savedirs]
@@ -105,7 +107,7 @@ def load_input_field(args,v,v_in_file):
 
 def load_input_fields(args,name_dict):
 
-    ds=xr.merge([load_input_field(args,v,name_dict[v]).rename(v) for v in args.variables],compat='override')
+    ds=xr.merge([load_input_field(args,v,name_dict[v]).rename(v) for v in args.variables], compat='override', join='outer')
     return ds
 
 def interp_to_1degree_grid_over_precursor_domain(ds,latmin=15,latmax=85,lonmin=-100,lonmax=60):
@@ -148,7 +150,6 @@ def load_precursor_patterns_and_params(args):
 
     #if a variable ends _detrend, we load the pattern of the base variable.
     var_names=[v.lower().split('_detrend')[0] for v in args.variables]
-
     index_names=[f'{v}_lag{l}_index_val1' for v,l in it.product(var_names,args.lags)]
     pattern_all_seasons=[]
     param_all_seasons=[]
@@ -166,11 +167,11 @@ def load_precursor_patterns_and_params(args):
             sp=sp[index_names].assign_coords(region_id=r,season=s)
             param_all_regions.append(sp.load())
 
-        pattern_all_seasons.append(xr.concat(pattern_all_regions,'region_id'))
-        param_all_seasons.append(xr.concat(param_all_regions,'region_id'))
+        pattern_all_seasons.append(xr.concat(pattern_all_regions, 'region_id', coords='different', compat='equals', join='outer'))
+        param_all_seasons.append(xr.concat(param_all_regions, 'region_id', coords='different', compat='equals', join='outer'))
 
-    precursor_patterns=xr.concat(pattern_all_seasons,'season')
-    precursor_std_params=xr.concat(param_all_seasons,'season')
+    precursor_patterns=xr.concat(pattern_all_seasons, 'season', coords='different', compat='equals', join='outer')
+    precursor_std_params=xr.concat(param_all_seasons, 'season', coords='different', compat='equals', join='outer')
 
     return precursor_patterns,precursor_std_params
 def load_cycle(args):
@@ -179,7 +180,8 @@ def load_cycle(args):
 
     #here we do treat detrended variables differently, so this is
     #different to the corresponding line in load_precursor_patterns_and_params
-    var_names=[v.lower() for v in args.variables]
+    #Renaming z500 to match variables in ERA5 cycle data.
+    var_names=[v.lower().split('_detrend')[0] for v in args.variables]
     cycle=xr.open_dataset(cycle_path,chunks='auto')[var_names]
     return cycle.load()
 
@@ -249,16 +251,28 @@ def make_serializable_attrs(args):
     return attr_dict
 
 
+def strip_char_dim_name_encoding(da):
+    da = da.copy(deep=False)
+    da.encoding = {key: value for key, value in da.encoding.items() if key != 'char_dim_name'}
+
+    for coord_name in da.coords:
+        coord = da.coords[coord_name]
+        coord.encoding = {
+            key: value for key, value in coord.encoding.items() if key != 'char_dim_name'
+        }
+
+    return da
+
+
 def project_onto_precursor_indices_and_save(ds,patterns,params,args):
     
     #work out the full save directory
     outdirs=get_save_path(args)
-
+    
+    
     slices=[dict(lag=l,index_val=1) for l in args.lags]
-
-    for r in args.regions:
+    for r in tqdm(args.regions):
         for s in args.seasons:
-
 
             in_season=ds['time.season']==s
             field=ds.isel(time=in_season)
@@ -277,17 +291,19 @@ def project_onto_precursor_indices_and_save(ds,patterns,params,args):
                 P=P.expand_dims('lag').assign_coords(lag=args.lags)
             except Exception as e:
                 pass
-
+            
             #generate the indices and standardise them
             IG=IndexGenerator()
             indices=IG.generate(P,field,slices=slices,
                 ix_means=param.sel(param='mean'),ix_stds=param.sel(param='std'))
-            
             #adds all metadata from index generation into each index
             #save
             for savepath,dv in zip(save_paths,list(indices.data_vars)):
+                if 'z500_detrend' in savepath:
+                    savepath = savepath.replace("z500_detrend", "z500")
                 da=indices[dv]
                 da.attrs = make_serializable_attrs(args)
+                da = strip_char_dim_name_encoding(da)
                 da.to_netcdf(savepath)
     
     return
@@ -325,6 +341,11 @@ if __name__=='__main__':
 
     #load model field data and put it on a 1deg grid over the precursor domain
     targ_field=load_input_fields(args,var_name_dict)
+    # Renaming z500_detrend into z500 to match cycle variable name
+    for data_vars in targ_field.data_vars:
+        if data_vars == 'z500_detrend':
+            targ_field = targ_field.rename({data_vars: 'z500'})
+
     targ_field=ensure_lon_180(targ_field)
     targ_field=interp_to_1degree_grid_over_precursor_domain(targ_field)
 
@@ -335,6 +356,7 @@ if __name__=='__main__':
 
     #remove seasonal cycle from field data:
     targ_field=deseasonalise_field(targ_field,cycle)
-
+    if 'z500_detrend' in targ_field:
+        targ_field = targ_field.rename(z500_detrend='z500')
     #Do the projection and save them to file
     project_onto_precursor_indices_and_save(targ_field,patterns,params,args)

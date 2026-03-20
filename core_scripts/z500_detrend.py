@@ -62,15 +62,16 @@ def main(args):
     date_end = ''.join(date_end.split('-'))
     output_pattern = f"{args.basedir}/{args.model}/z500_detrend/{args.experiment}/z500_detrend_day_{args.model}_{args.experiment}_{args.member}_gn_{date_start}-{date_end}.nc"
     os.makedirs(os.path.dirname(output_pattern), exist_ok=True)
-    subprocess.run(['chmod','-R','g+wrx',os.path.dirname(output_pattern)])
-    x_detrended.to_netcdf(output_pattern)
+    # subprocess.run(['chmod','-R','g+wrx',os.path.dirname(output_pattern)])   # add this only when dir above is created
+    ds_out = x_detrended.to_dataset().assign_attrs(ds.attrs)
+    ds_out.to_netcdf(output_pattern)
 
 
 
 
 def detrend_seasonal_cycle(x, era5_cycle, latmin, latmax):
     # Subset latitudes
-    x = x.sel(lat = slice(latmin, latmax), )
+    x = x.sel(lat = slice(latmin, latmax), ) #add longitude extend here
 
     # Weighted mean lat/lon
     weights = np.cos(np.deg2rad(x.lat))
@@ -90,7 +91,7 @@ def detrend_seasonal_cycle(x, era5_cycle, latmin, latmax):
 
     # Removing the smoothed trend
     stacked_x = x.assign_coords(year = x['time.year'], month = x['time.month']).set_index(time = ('year', 'month'))
-    z = smooth_y.stack(time = ('year', 'month'))
+    z = (smooth_y-smooth_y.isel(year=0)).stack(time = ('year', 'month')) # This works only if data goes back to early SSP
     x_detrended = stacked_x - z.sel(time = stacked_x.time)
     
 
@@ -98,15 +99,15 @@ def detrend_seasonal_cycle(x, era5_cycle, latmin, latmax):
     x_detrended = x_detrended.assign_coords(time = x.time)
 
     # Removing the stationary seasonal cycle and mean state (ERA5)
-    era_cycle = xr.open_dataset(era5_cycle).z500
-    era_cycle = era_cycle.sel(lat = slice(latmin, latmax + 1))
-    NH_mean_cycle = era_cycle.groupby('time.month').mean().weighted(np.cos(np.deg2rad(era_cycle.lat))).mean(('lat', 'lon'))
+    # era_cycle = xr.open_dataset(era5_cycle).z500
+    # era_cycle = era_cycle.sel(lat = slice(latmin, latmax + 1))
+    # NH_mean_cycle = era_cycle.groupby('time.month').mean().weighted(np.cos(np.deg2rad(era_cycle.lat))).mean(('lat', 'lon'))
 
-    # Conversion of the unit (m²/s² → m)
-    NH_mean_cycle = NH_mean_cycle/g
+    # # Conversion of the unit (m²/s² → m)
+    # NH_mean_cycle = NH_mean_cycle/g
 
-    # Substract the seasonal cycle
-    x_detrended = x_detrended.groupby('time.month') + NH_mean_cycle
+    # # Substract the seasonal cycle
+    # x_detrended = x_detrended.groupby('time.month') + NH_mean_cycle
     x_detrended = x_detrended.assign_attrs(x.attrs)    
 
     return x_detrended

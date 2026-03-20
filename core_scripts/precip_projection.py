@@ -34,10 +34,10 @@ def parse_args(arg_list=None):
     parser.add_argument('--inputdir',type=str,default='/Data/gfi/share/ModData/CMIP_EU_Precip_Precursors/',
                         help='Directory in which to look for field data.')
     
-    parser.add_argument('--auxdir',type=str,default='/Data/gfi/share/ModData/CMIP_EU_Precip_Precursors/aux/',
+    parser.add_argument('--auxdir',type=str,default='/Data/skd/projects/global/cmip6_precursors/aux/',
                     help='Directory in which to look for mask file.')
     
-    parser.add_argument('--savedir',type=str,default='/Data/gfi/share/ModData/CMIP_EU_Precip_Precursors/indices/',
+    parser.add_argument('--savedir',type=str,default='/Data/skd/projects/global/cmip6_precursors/outputs/indices/',
                     help='Directory in which to save output.')
 
     parser.add_argument('--maskname',type=str,default='ERA5_rainfall_regions.nc',
