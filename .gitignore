@@ -1,5 +1,9 @@
 *.nc
 *.pyc
+*.log
+# Jupyter-related caches
+.ipynb_checkpoints/
+.virtual_documents/
 raw/
 decopmositions
 indices
