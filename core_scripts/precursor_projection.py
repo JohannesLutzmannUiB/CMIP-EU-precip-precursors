@@ -2,11 +2,13 @@ from dask.distributed import Client, LocalCluster
 import argparse
 import xarray as xr
 import os
+import sys
 import numpy as np
 from domino.core import IndexGenerator
 import itertools as it
 from tqdm import tqdm
 import subprocess
+# import logging
 
 ###
 #some debuggging code
@@ -56,7 +58,7 @@ def parse_args(arg_list=None):
     parser.add_argument('--lags', nargs='+', type=int, default=[0],
                     help='Which lag times to use.')
 
-    parser.add_argument('--inputdir',type=str,default='/Data/gfi/scratch/jlu044/CMIP_EU_Precip_Precursors/',
+    parser.add_argument('--inputdir',type=str,default='/Data/gfi/share/ModData/CMIP_EU_Precip_Precursors/raw/',
                         help='Directory in which to look for field data.')
     
     parser.add_argument('--auxdir',type=str,default='/Data/skd/projects/global/cmip6_precursors/aux/',
@@ -77,7 +79,7 @@ def parse_args(arg_list=None):
     return parser.parse_args(arg_list)
 
 def get_save_path(args):
-    savedirs=[f'{args.savedir}{args.model}/{v}/{args.experiment}/' for v in args.variables]
+    savedirs=[f'{args.savedir}{args.model}/{v.split("_detrend")[0]}/{args.experiment}/' for v in args.variables]
     for savedir in savedirs:
         os.makedirs(savedir,exist_ok=True)
         # only tun if dir was just made, otherwise we might be changing permissions of a dir that other processes are writing to.
@@ -102,12 +104,23 @@ def load_input_field(args,v,v_in_file):
     
     data=xr.open_dataset(indir+filenames[0],
         chunks=dict(time=-1,lat=-1,lon=-1))[v_in_file].chunk('auto')
+    with open("./mylog.log", "a") as f:
+        f.write("variable in the dataset right after the reading the input field for "+v_in_file+":\n")
+        f.write(data.name+"\n")
     
     return data
 
 def load_input_fields(args,name_dict):
 
+<<<<<<< HEAD
     ds=xr.merge([load_input_field(args,v,name_dict[v]).rename(v) for v in args.variables], compat='override', join='outer')
+=======
+    # ds=xr.merge([load_input_field(args,v,name_dict[v]).rename(v.split("_detrend")[0]) for v in args.variables],compat='override')
+    ds=xr.merge([load_input_field(args,v,name_dict[v]).rename(v) for v in args.variables],compat='override')
+    with open("./mylog.log", "a") as f:
+        f.write("all variable in the merged dataset right after the reading the input fields:\n")
+        f.write(" ".join(ds.variables.keys())+"\n")
+>>>>>>> d421045 (committing all changes to the CMIP precip precursor code made by Johannes Lutzmann up to 20/03/2026)
     return ds
 
 def interp_to_1degree_grid_over_precursor_domain(ds,latmin=15,latmax=85,lonmin=-100,lonmax=60):
@@ -148,8 +161,18 @@ def load_precursor_patterns_and_params(args):
     pattern_path=f'{args.auxdir}/patterns/{args.precursorid}_'
     param_path=f'{args.auxdir}/std_params/{args.precursorid}_{args.refid}_'
 
+    # with open("./mylog.log", "a") as f:
+    #     f.write("variable names before the varname splitting:\n")
+    #     f.write(" ".join(args.variables)+"\n")
     #if a variable ends _detrend, we load the pattern of the base variable.
     var_names=[v.lower().split('_detrend')[0] for v in args.variables]
+<<<<<<< HEAD
+=======
+    # with open("./mylog.log", "a") as f:
+    #     f.write("variable names after the varname splitting:\n")
+    #     f.write(" ".join(var_names)+"\n")
+
+>>>>>>> d421045 (committing all changes to the CMIP precip precursor code made by Johannes Lutzmann up to 20/03/2026)
     index_names=[f'{v}_lag{l}_index_val1' for v,l in it.product(var_names,args.lags)]
     pattern_all_seasons=[]
     param_all_seasons=[]
@@ -160,6 +183,11 @@ def load_precursor_patterns_and_params(args):
 
         for r in args.regions:
             P=xr.open_dataset(pattern_path+f'{s}_region{r:02d}.nc')
+            # with open("./mylog.log", "a") as f:
+            #     f.write("variable names before the varname splitting:\n")
+            #     f.write(" ".join(list(ds.variables.keys()))+"\n")
+            
+            
             P=P[var_names].sel(lag=args.lags,index_val=1).assign_coords(region_id=r,season=s)
             pattern_all_regions.append(P.load())
 
@@ -173,7 +201,10 @@ def load_precursor_patterns_and_params(args):
     precursor_patterns=xr.concat(pattern_all_seasons, 'season', coords='different', compat='equals', join='outer')
     precursor_std_params=xr.concat(param_all_seasons, 'season', coords='different', compat='equals', join='outer')
 
+    
+    
     return precursor_patterns,precursor_std_params
+    
 def load_cycle(args):
 
     cycle_path=f'{args.auxdir}/cycles/{args.refid}.nc'
@@ -205,12 +236,20 @@ def deseasonalise_field(targ_field,cycle):
     #Then resample the cycle's dayofyear climatology along the targ_field time axis
     expanded_cycle=cycle.sel(dayofyear=targ_field['time.dayofyear'].values)
     expanded_cycle=expanded_cycle.swap_dims(dayofyear='time').assign_coords(time=targ_field.time)
-
+    
     #raises error if the cycle and targ field don't match up
     targ_field,expanded_cycle=xr.align(targ_field,expanded_cycle,join='exact')
+    with open("./mylog.log", "a") as f:
+        f.write("target field before deseasonalising in deseasonalise_field:\n")
+        f.write(" ".join(list(targ_field.variables.keys()))+"\n")
+        f.write("expanded_cycle before deseasonalising in deseasonalise_field:\n")
+        f.write(" ".join(list(targ_field.variables.keys()))+"\n")
 
     #return deseasonalised field
     deseas_field=targ_field-expanded_cycle
+    with open("./mylog.log", "a") as f:
+        f.write("target field after deseasonalising in deseasonalise_field:\n")
+        f.write(" ".join(list(deseas_field.variables.keys()))+"\n")
     return deseas_field
 
 def drop_vars_for_existing_files_if_any(P,field,save_paths):
@@ -279,9 +318,14 @@ def project_onto_precursor_indices_and_save(ds,patterns,params,args):
 
             P=patterns.sel(season=s,region_id=r)
             param=params.sel(season=s,region_id=r)
-
+            
             save_paths=[dir+f'{s}_region{r}.nc' for dir in outdirs]
-
+            # with open("./mylog.log", "a") as f:
+            #     f.write("outputting the savepaths right after defining them:\n")
+            #     f.write(" ".join(save_paths)+"\n")
+            #     f.write("outputting the variables before the drop_vars and expand_dims operations:\n")
+            #     f.write(" ".join(list(field.variables.keys()))+"\n")
+                
             if not args.overwrite:
                 P,field,save_paths=drop_vars_for_existing_files_if_any(P,field,save_paths)
                 if len(P.data_vars)==0:
@@ -292,46 +336,90 @@ def project_onto_precursor_indices_and_save(ds,patterns,params,args):
             except Exception as e:
                 pass
             
+<<<<<<< HEAD
+=======
+            with open("./mylog.log", "a") as f:
+                f.write("outputting the variables after the drop_vars and expand_dims operations:\n")
+                f.write(" ".join(list(field.variables.keys()))+"\n")
+                f.write("outputting the variables in the Patterns and Parameters at the same time:\n")
+                f.write(" ".join(list(P.variables.keys()))+"\n")
+                f.write(" ".join(list(param.variables.keys()))+"\n")
+                
+            if "z500_detrend" in list(field.variables.keys()):
+                field = field.rename({"z500_detrend": "z500"})
+
+>>>>>>> d421045 (committing all changes to the CMIP precip precursor code made by Johannes Lutzmann up to 20/03/2026)
             #generate the indices and standardise them
             IG=IndexGenerator()
             indices=IG.generate(P,field,slices=slices,
                 ix_means=param.sel(param='mean'),ix_stds=param.sel(param='std'))
+<<<<<<< HEAD
             #adds all metadata from index generation into each index
             #save
+=======
+            with open("./mylog.log", "a") as f:
+                f.write("These are the variables that are left after IG.gnerate:\n")
+                f.write(" ".join(list(indices.data_vars))+"\n")
+            # adds all metadata from index generation into each index
+            # save
+            with open("./mylog.log", "a") as f:
+                f.write("outputting all savepath and dv values:\n")
+>>>>>>> d421045 (committing all changes to the CMIP precip precursor code made by Johannes Lutzmann up to 20/03/2026)
             for savepath,dv in zip(save_paths,list(indices.data_vars)):
                 if 'z500_detrend' in savepath:
                     savepath = savepath.replace("z500_detrend", "z500")
                 da=indices[dv]
                 da.attrs = make_serializable_attrs(args)
+<<<<<<< HEAD
                 da = strip_char_dim_name_encoding(da)
+=======
+                sys.stdout.flush()
+>>>>>>> d421045 (committing all changes to the CMIP precip precursor code made by Johannes Lutzmann up to 20/03/2026)
                 da.to_netcdf(savepath)
+                with open("./mylog.log", "a") as f:
+                    f.write(savepath+" "+dv+"\n")
     
-    return
+    return# save_paths, indices.data_vars
 
-def main(
-    model, experiment, member="",variables=['z500_detrend','u850','v850'],
-    overwrite=False, seasons=['DJF', 'MAM','JJA','SON'], regions==None,
-    lags=[0], inputdir='/Data/gfi/scratch/jlu044/CMIP_EU_Precip_Precursors/',
+def run_precursor_projection(
+    model, experiment, member="", variables=['z500_detrend','u850','v850'],
+    overwrite=False, seasons=['DJF', 'MAM','JJA','SON'], regions=None,
+    lags=[0], inputdir='/Data/gfi/share/ModData/CMIP_EU_Precip_Precursors/',
     auxdir='/Data/gfi/share/ModData/CMIP_EU_Precip_Precursors/aux/',
-    outputdir='/Data/gfi/scratch/jlu044/CMIP_EU_Precip_Precursors/indices/', 
-    precursorid='standard', refid='ERA5', debug=False)
-    pass
+    savedir='/Data/skd/projects/global/cmip6_precursors/outputs/indices/', 
+    precursorid='standard', refid='ERA5', debug=False):
+    
+    arg_list = (
+        ["--model", model, "--experiment", experiment, "--member", member,
+         "--variables"]+variables+["--seasons"]+seasons
+        +["--lags"]+[str(l) for l in lags]
+        +["--inputdir", inputdir, "--auxdir", auxdir, "--savedir", savedir,
+          "--precursorid", precursorid, "--refid", refid])
 
+    if overwrite:
+        arg_list.append("--overwrite")
+        
+    if debug:
+        arg_list.append("--debug")
 
-var_name_dict={
-    'z500_detrend':'zg_detrend',
-    'z500':'zg',
-    'u850':'ua',
-    'v850':'va'
-}
-if __name__=='__main__':
+    if not regions is None:
+        arg_list+=["--regions"]+[str(r) for r in regions]
+    
+    print(arg_list)
+    args = parse_args(arg_list)
+    
+    main(args)
+    return
+        
 
+def main(args):
     #use multi-core for speed
     cluster = LocalCluster(n_workers=4, memory_limit='16GiB')
     client = Client(cluster)
     print('Access dask dashboard: ', client.dashboard_link)
+    with open("./mylog.log", "w") as f:
+        f.write("Starting a new log:\n")
     
-    args = parse_args()
     if args.debug:
         decorate_all_functions(sys.modules[__name__], log_function_call)
 
@@ -361,12 +449,80 @@ if __name__=='__main__':
 
     #Now we compute, everything was lazy up to now
     targ_field=targ_field.load()
-
+    with open("./mylog.log", "a") as f:
+        f.write("target field after loading:\n")
+        f.write(" ".join(list(targ_field.variables.keys()))+"\n")
+    
     targ_field=geopotential_height_to_geopotential_if_present(targ_field)
-
+    with open("./mylog.log", "a") as f:
+        f.write("target field after geopotential_height_to_geopotential_if_present:\n")
+        f.write(" ".join(list(targ_field.variables.keys()))+"\n")
     #remove seasonal cycle from field data:
     targ_field=deseasonalise_field(targ_field,cycle)
+<<<<<<< HEAD
     if 'z500_detrend' in targ_field:
         targ_field = targ_field.rename(z500_detrend='z500')
+=======
+    
+    with open("./mylog.log", "a") as f:
+        f.write("target field just before the last function call:\n")
+        f.write(" ".join(list(targ_field.variables.keys()))+"\n")
+        # f.write("patterns before the last function call:\n")
+        # f.write(" ".join(list(patterns.variables.keys()))+"\n")
+        # f.write("params field just before the last function call:\n")
+        # f.write(" ".join(list(params.variables.keys()))+"\n")
+        
+>>>>>>> d421045 (committing all changes to the CMIP precip precursor code made by Johannes Lutzmann up to 20/03/2026)
     #Do the projection and save them to file
+    # save_paths, data_vars = 
+    
     project_onto_precursor_indices_and_save(targ_field,patterns,params,args)
+    return #save_paths, data_vars
+
+var_name_dict={
+    'z500_detrend':'zg_detrend',
+    'z500':'zg',
+    'u850':'ua',
+    'v850':'va'
+}
+if __name__=='__main__':
+
+    # #use multi-core for speed
+    # cluster = LocalCluster(n_workers=4, memory_limit='16GiB')
+    # client = Client(cluster)
+    # print('Access dask dashboard: ', client.dashboard_link)
+    
+    args = parse_args()
+    main(args)
+    # if args.debug:
+    #     decorate_all_functions(sys.modules[__name__], log_function_call)
+
+    # #use a pre-established set of regions if none specified
+    # if args.regions is None:
+    #     # region 2 was an uninhabited island so we dropped it.
+    #     args.regions=[1,*np.arange(3,40)] 
+    # else:
+    #     pass
+
+    # #load precursor patterns and standardisation params
+    # # which ensure precursor index has mean 0 and std 1
+    # patterns,params=load_precursor_patterns_and_params(args)
+
+    # #load reference seasonal cycle
+    # cycle=load_cycle(args)
+
+    # #load model field data and put it on a 1deg grid over the precursor domain
+    # targ_field=load_input_fields(args,var_name_dict)
+    # targ_field=ensure_lon_180(targ_field)
+    # targ_field=interp_to_1degree_grid_over_precursor_domain(targ_field)
+
+    # #Now we compute, everything was lazy up to now
+    # targ_field=targ_field.load()
+
+    # targ_field=geopotential_height_to_geopotential_if_present(targ_field)
+
+    # #remove seasonal cycle from field data:
+    # targ_field=deseasonalise_field(targ_field,cycle)
+
+    # #Do the projection and save them to file
+    # project_onto_precursor_indices_and_save(targ_field,patterns,params,args)

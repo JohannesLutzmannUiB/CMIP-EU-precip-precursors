@@ -34,8 +34,12 @@ def parse_args(arg_list=None):
     parser.add_argument('--regions', nargs='+', type=str, default=None,
                 help='Which regions to compute metrics for. Default is to use all regions.')
 
-    parser.add_argument('--members', nargs='+', type=str, default='',
-                        help='Which ensemble member or members to use. Defaults to assuming not an ensemble.')
+
+    parser.add_argument('--historical_members', nargs='+', type=str, default=None,
+                        help='Which ensemble member or members to use for the historical period. Defaults to assuming not an ensemble.')
+    
+    parser.add_argument('--future_members', nargs='+', type=str, default=None,
+                        help='Which ensemble member or members to use for the future period. Defaults to assuming not an ensemble.')
     
     parser.add_argument('--referencemodel', type=str, default='ERA5',
                     help='name of reference simulation.')
@@ -83,11 +87,13 @@ def get_ref_data(args):
                 # da=xr.open_dataarray(f'{dir}+{args.season}_region{args.region_id}.nc')
                 da=xr.open_dataarray(f'{dir}/{s}_region{r}.nc')
                 a2.append(da.assign_coords(season=s))
-            a1.append(xr.concat(a2, 'season', coords='different', compat='equals', join='outer').assign_coords(region_id=r))
+            a1.append(xr.concat(
+                a2, 'season', coords='different', compat='equals',
+                join='outer').assign_coords(region_id=r))
         da=xr.concat(a1, 'region_id', coords='different', compat='equals', join='outer')
         # ds.append(da.rename(v))
         ds.append(da)
-    ds=xr.merge(ds, compat='override', join='outer')
+    ds=xr.merge(ds, compat='override', join='outer')Lutzmann up to 20/03/2026)
 
     y0,y1=args.hist_period
     # hist_period=np.arange(y0,y1+1)
@@ -102,8 +108,8 @@ def get_hist_data(args):
     # vars=np.atleast_1d(args.variables).append(args.hazardvariable)
     vars=list(np.atleast_1d(args.variables)) + [args.hazardvariable]
     ds=[]
-    mems=np.atleast_1d(args.members)
-    not_ens= (len(mems)==1) and (mems[0]=='')
+    mems=np.atleast_1d(args.historical_members)
+    not_ens= (len(mems)==1) and (mems[0] is None)
     
     for v in vars:
         vdir=f'{bp}{v}/{args.historical_experiment}/'
@@ -150,8 +156,8 @@ def get_future_data(args):
     vars=list(np.atleast_1d(args.variables)) + [args.hazardvariable]
 
     ds=[]
-    mems=np.atleast_1d(args.members)
-    not_ens= (len(mems)==1) and (mems[0]=='')
+    mems=np.atleast_1d(args.future_members)
+    not_ens= (len(mems)==1) and (mems[0] is None)
     
     for v in vars:
         vdir=f'{bp}{v}/{args.future_experiment}/'
@@ -189,49 +195,46 @@ def get_future_data(args):
     return ds
 
 def get_savepaths(args,s,r,suff='csv'):
-    if type(args.members) is list:
-        member = '-'.join(args.members)
-    else:
-        member = args.members[0] if args.members else 'r1i1p1f1'    
-    s1=f'{args.savedir}/{args.model}/{member}/'
+    s1=f'{args.savedir}/{args.model}/'
+
+    # check if the data is part of an ensemmble
+    mems_hist = np.atleast_1d(args.historical_members)
+    not_ens_hist = (len(mems_hist)==1) and (mems_hist[0] is None)
+
+    mems_fut = np.atleast_1d(args.future_members)
+    not_ens_fut = (len(mems_fut)==1) and (mems_fut[0] is None)
+
+    not_ens = not_ens_hist or not_ens_fut    
+    # Create a subdirectory for this specific cobination
+    # of historical and future members
+    if not not_ens:
+        if len(mems_hist) > 3:
+            mems_str_hist = ("historical_"+mems_hist[0]+"_through_"
+                             +mems_hist[-1])
+        else:
+            mems_str_hist = "historical_"+"_".join(mems_hist)
+
+        if len(mems_fut) > 3:
+            mems_str_fut = (args.future_experiment+"_"+mems_fut[0]+"_through_"
+                            +mems_fut[-1])
+        else:
+            mems_str_fut = (args.future_experiment+"_"+"_".join(mems_fut))
+
+        
+        s1 += mems_str_hist + "_" +  mems_str_fut + "/"
+    
     s2=f'{s}_region{r}.{suff}'
     return s1+'decomp_'+s2, s1+'terms_'+s2
 
 
-def get_final_savepaths(args, suff='csv'):
-    if type(args.members) is list:
-        member = '-'.join(args.members)
-    else:
-        member = args.members[0] if args.members else 'r1i1p1f1'
-    base_dir = f'{args.savedir}/{args.model}/{member}/'
-    return (
-        f'{base_dir}{args.model}_{member}_paper_terms_df.{suff}',
-        f'{base_dir}{args.model}_{member}_paper_terms_ens_df.{suff}'
-    )
-
-
-def get_zero_summed_terms_df(model, season, region_id):
-    rows = []
-    for source in ['conversion', 'dynamical', 'nonlinear']:
-        for term in ['bias', 'change', 'uncalibrated_change']:
-            rows.append(
-                {
-                    'model': model,
-                    'season': season,
-                    'region_id': region_id,
-                    'source': source,
-                    'term': term,
-                    'value': 0,
-                }
-            )
-    return pd.DataFrame(rows)
-
 
 def run_decompose_precip(
     model, future_experiment, eventthreshold=0.95, nprecursorbins=10,
-    seasons=['DJF', 'MAM','JJA','SON'], regions=None, members='', referencemodel='ERA5',
-    historical_experiment='historical', hist_period=[1979,2014], future_period=[2060,2100],
-    variables=['z500','u850','v850'], hazardvariable='pr', overwrite=False,
+    seasons=['DJF', 'MAM','JJA','SON'], regions=None, historical_members=None,
+    future_members=None, referencemodel='ERA5',
+    historical_experiment='historical', hist_period=[1979,2014],
+    future_period=[2060,2100], variables=['z500','u850','v850'],
+    hazardvariable='pr', overwrite=False,
     inputdir='/Data/skd/projects/global/cmip6_precursors/outputs/indices/',
     auxdir='/Data/skd/projects/global/cmip6_precursors/aux/',
     savedir='/Data/skd/projects/global/cmip6_precursors/outputs/decompositions/'
@@ -241,7 +244,7 @@ def run_decompose_precip(
         ["--model", model, "--future_experiment", future_experiment,
         '--eventthreshold', str(eventthreshold), '--nprecursorbins',
          str(nprecursorbins), "--seasons"]+seasons
-        +['--members', members, '--referencemodel', referencemodel,
+        +['--referencemodel', referencemodel,
           '--historical_experiment', historical_experiment, "--variables"]
         +variables+['--hazardvariable', hazardvariable, '--inputdir', inputdir,
                     '--auxdir', auxdir, '--savedir', savedir])
@@ -251,6 +254,20 @@ def run_decompose_precip(
 
     if not regions is None:
         arg_list+=["--regions"]+[str(r) for r in regions]
+
+    if not future_members is None:
+        if type(future_members) in (list, tuple):
+            arg_list+=["--future_members"]+[str(f) for f in future_members]
+        elif type(future_members) is str:
+            arg_list+=["--future_members", future_members]
+    
+    if not historical_members is None:
+        if type(historical_members) in (list, tuple):
+            arg_list+=(["--historical_members"]
+                       +[str(h) for h in historical_members])
+        elif type(historical_members) is str:
+            arg_list+=["--historical_members", historical_members]
+            
 
     if type(hist_period) is list:
         if len(hist_period)==2:
@@ -695,6 +712,7 @@ def decomp_to_term_pd_df(arr,model, season, region_id):
 
 
 
+
     
 def main(args):
     sys.path.append(args.auxdir)
@@ -736,8 +754,12 @@ def main(args):
                     fd=hd
                 else:
                     fd=future_data.sel(season=s,region_id=r)
-                hd = xr.concat([hd.sel(member=k, drop=True) for k in hd.member], dim='time', coords='different', compat='equals', join='outer')
-                fd = xr.concat([fd.sel(member=k, drop=True) for k in fd.member], dim='time', coords='different', compat='equals', join='outer')
+                hd = xr.concat([hd.sel(member=k, drop=True) for k in hd.member],
+                               dim='time', coords='different', compat='equals',
+                               join='outer')
+                fd = xr.concat([fd.sel(member=k, drop=True) for k in fd.member],
+                               dim='time', coords='different', compat='equals',
+                               join='outer')
                 decomposed_hazard=decompose_hazard_odds_ratio(rd.dropna('time'),
                                                               hd.dropna('time'),
                                                               fd.dropna('time'),                                             

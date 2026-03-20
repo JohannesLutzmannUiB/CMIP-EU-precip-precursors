@@ -179,8 +179,31 @@ def split_and_save_indices_v2(timeseries_per_region,outdir,args):
                 ds_season_region.to_netcdf(savepath)
     return
 
-if __name__=='__main__':
-    args = parse_args()
+def run_precip_projection(
+    model, experiment, member='', overwrite=True,
+    seasons=['DJF', 'MAM','JJA','SON'], regions=None,
+    inputdir='/Data/gfi/share/ModData/CMIP_EU_Precip_Precursors/',
+    auxdir='/Data/skd/projects/global/cmip6_precursors/aux/',
+    savedir='/Data/skd/projects/global/cmip6_precursors/outputs/indices/',
+    maskname='ERA5_rainfall_regions.nc'):
+
+    arg_list = (
+        ["--model", model, "--experiment", experiment, "--member", member,
+         "--seasons"]+seasons+["--inputdir", inputdir, "--auxdir", auxdir,
+                               "--savedir", savedir,"--maskname", maskname])
+    if overwrite:
+        arg_list.append("--overwrite")
+
+    if not regions is None:
+        arg_list+=["--regions"]+[str(r) for r in regions]
+
+    print(arg_list)
+    args = parse_args(arg_list)
+
+    main(args)
+    return
+
+def main(args):
     args.variable='pr' #hardcoding this for now.
 
     #use multi-core for speed
@@ -202,7 +225,7 @@ if __name__=='__main__':
         regions=[int(r) for r in regions if not np.isnan(r)]
     else:
         regions=np.atleast_1d(args.regions)
-
+    
     #load model precip data and interpolate it onto the mask grid
     targ_field=load_input_field(args)
     attrs = targ_field.attrs
@@ -221,3 +244,8 @@ if __name__=='__main__':
     # timeseries_per_region.attrs = attrs
 
     split_and_save_indices_v2(timeseries_per_region,outdir,args)
+    
+
+if __name__=='__main__':
+    args = parse_args()
+    main(args)
