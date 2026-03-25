@@ -93,7 +93,7 @@ def get_ref_data(args):
         da=xr.concat(a1, 'region_id', coords='different', compat='equals', join='outer')
         # ds.append(da.rename(v))
         ds.append(da)
-    ds=xr.merge(ds, compat='override', join='outer')Lutzmann up to 20/03/2026)
+    ds=xr.merge(ds, compat='override', join='outer')
 
     y0,y1=args.hist_period
     # hist_period=np.arange(y0,y1+1)

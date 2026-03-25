@@ -7,29 +7,52 @@ import glob
 
 g = 9.80665
 
-def parse_args():
+def parse_args(arg_list=None):
     parser = argparse.ArgumentParser(description = "detrending of z500, removal of the stationary seasonal cycle based on ERA5")
     
-    parser.add_argument("--model", required = True, 
-                        help = 'name of model simulation to load as input, e.g. CNRM-CM6-1')
-    parser.add_argument("--experiment", required=True, 
-                        help = 'name of simulation experiment, e.g. historical, ssp370')
+    parser.add_argument(
+        "--model", required = True, 
+        help = 'name of model simulation to load as input, e.g. CNRM-CM6-1')
+    parser.add_argument(
+        "--experiment", required=True, 
+        help = 'name of simulation experiment, e.g. historical, ssp370')
     parser.add_argument("--member", required=True, 
                         help = 'Which ensemble member, if any')
 
 # Optional arguments
-    parser.add_argument("--basedir", default="/Data/gfi/share/ModData/CMIP_EU_Precip_Precursors/raw", 
-                        help = 'root directory')
+    parser.add_argument(
+        "--basedir", 
+        default="/Data/gfi/share/ModData/CMIP_EU_Precip_Precursors/raw", 
+        help = 'root directory')
     parser.add_argument("--varname", default="zg", 
                         help = 'name of the variable to detrend')
-    parser.add_argument("--era5_cycle", default="/Data/skd/projects/global/cmip6_precursors/aux/cycles/ERA5.nc", 
-                        help = 'file with the ERA5 seasonal cycle')
+    parser.add_argument(
+        "--era5_cycle", 
+        default="/Data/skd/projects/global/cmip6_precursors/aux/cycles/ERA5.nc", 
+        help = 'file with the ERA5 seasonal cycle')
     parser.add_argument('--latmin', type=float, default=30, 
                         help='min lat')
     parser.add_argument('--latmax', type=float, default=85, 
                         help='max lat')
 
-    return parser.parse_args()
+    return parser.parse_args(arg_list)
+
+
+def run_z500_detrend(
+    model, experiment, member,
+    basedir="/Data/gfi/share/ModData/CMIP_EU_Precip_Precursors/raw",
+    era5_cycle="/Data/skd/projects/global/cmip6_precursors/aux/cycles/ERA5.nc",
+    latmin=30, latmax=85):
+
+    arg_list = ["--model", model, "--experiment", experiment,
+                "--member", member, "--basedir", basedir,
+                "--era5_cycle", era5_cycle, "--latmin", str(latmin),
+                "--latmax", str(latmax)]
+
+    args = parse_args(arg_list)
+    
+    main(args)
+    return
 
 
 def main(args):
