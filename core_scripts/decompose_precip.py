@@ -15,8 +15,11 @@ def parse_args(arg_list=None):
     parser.add_argument('--model', type=str, required=True,
                         help='Name of model to decompose.')
 
-    parser.add_argument('--experiment', type=str, required=True,
-                        help='Name of model experiment.')
+    parser.add_argument('--future_experiment', type=str, required=True, 
+                        help='Future simulation to compute changes for, e.g. ssp370. Pass "none" for bias-only analysis.')
+    
+    
+    # Optional arguments
 
     parser.add_argument('--time_period', type=int, nargs=2, required=True,
                         help='The time period to use, given as 2 years (inclusive), e.g. 1979 2015.')
@@ -283,9 +286,23 @@ def run_decompose_precip(
 
     args = parse_args(arg_list)
     main(args)
-    return args
+    return
             
-
+def get_zero_summed_terms_df(model, season, region_id):
+    rows = []
+    for source in ['conversion', 'dynamical', 'nonlinear']:
+        for term in ['bias', 'change', 'uncalibrated_change']:
+            rows.append(
+                {
+                    'model': model,
+                    'season': season,
+                    'region_id': region_id,
+                    'source': source,
+                    'term': term,
+                    'value': 0,
+                }
+            )
+    return pd.DataFrame(rows)
 
 def decompose_hazard_odds_ratio(ref_ds,h_model_ds,
                                 f_model_ds,h_var,s_var,bin_num=5,
@@ -466,8 +483,6 @@ def save_cat_thresh(thresh_dict, auxdir, model, experiment,hazardvar,eventthresh
     np.savez(auxdir+filename,**thresh_dict)
     return
 
-
-def validate_sel_data(ds,s,r):
 
     
     nan_vals=ds.isnull().sum().to_array('feature')

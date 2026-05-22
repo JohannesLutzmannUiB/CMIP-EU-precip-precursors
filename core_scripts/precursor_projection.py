@@ -354,7 +354,7 @@ def run_precursor_projection(
 def main(args):
 
     #use multi-core for speed
-    cluster = LocalCluster(n_workers=2, memory_limit='32GiB')
+    cluster = LocalCluster(n_workers=4, memory_limit='32GiB')
     client = Client(cluster)
     print('Access dask dashboard: ', client.dashboard_link)
     
@@ -397,6 +397,8 @@ def main(args):
     #Do the projection and save them to file
     project_onto_precursor_indices_and_save(targ_field,patterns,params,args)
     
+    client.close()
+    cluster.close()
     return
 
 

@@ -244,6 +244,10 @@ def main(args):
     # timeseries_per_region.attrs = attrs
 
     split_and_save_indices_v2(timeseries_per_region,outdir,args)
+
+    client.close()
+    cluster.close()
+    return
     
 
 if __name__=='__main__':
