@@ -317,7 +317,7 @@ var_name_dict={
 if __name__=='__main__':
 
     #use multi-core for speed
-    cluster = LocalCluster(n_workers=4, memory_limit='16GiB')
+    cluster = LocalCluster(n_workers=2, memory_limit='32GiB')
     client = Client(cluster)
     print('Access dask dashboard: ', client.dashboard_link)
     

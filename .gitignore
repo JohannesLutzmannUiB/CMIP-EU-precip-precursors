@@ -3,3 +3,7 @@ raw/
 decopmositions
 indices
 test/
+*.log
+*.txt
+*__pycache__*
+.virtual_documents
