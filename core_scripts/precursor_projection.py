@@ -318,6 +318,12 @@ var_name_dict={
     'v850':'va'
 }
 if __name__=='__main__':
+
+    #use multi-core for speed
+    cluster = LocalCluster(n_workers=2, memory_limit='32GiB')
+    client = Client(cluster)
+    print('Access dask dashboard: ', client.dashboard_link)
+    
     args = parse_args()
     if args.debug:
         decorate_all_functions(sys.modules[__name__], log_function_call)
