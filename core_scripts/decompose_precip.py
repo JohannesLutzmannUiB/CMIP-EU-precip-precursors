@@ -148,11 +148,24 @@ def handle_PCA_projection(ds,condition_var,p_dvs,PCA_pattern):
     if not condition_var.startswith('PC'):
         return ds
     
-    X=ds[p_dvs].to_array('feature').T
+    is_dummy=False
+
+    X=ds[p_dvs]
+
+    if len(X.dims)!=1:
+        X=X.stack(dummy_dim=tuple(X.dims))
+        is_dummy=True
+        
+    X=X.to_array('feature').T
     N = int(condition_var[2:])
 
-    PC=(X.values @ PCA_pattern.T)[:,N-1][:,0]
-    ds[condition_var]=xr.DataArray(data=PC,coords=dict(time=ds.time))
+    PC=(X.values @ PCA_pattern.T)[:,N-1]
+    if is_dummy:
+        PC_da=xr.DataArray(data=PC,coords=dict(dummy_dim=X.dummy_dim))
+        PC_da=PC_da.unstack('dummy_dim')
+    else:
+        PC_da=xr.DataArray(data=PC,coords=dict(time=X.time))
+    ds[condition_var]=PC_da
     return ds
 
 def compute_bin_edges(ds, condition_var, bin_num):
@@ -176,7 +189,7 @@ def handle_categorical_target(ds, h_var, is_cat, thresh):
 
 def apply_decomposition(ds, h_var, s_var, bins):
     Ph_s=ds.groupby_bins(s_var,bins=bins).mean()[h_var].fillna(0) #average value of hazard in bin. Is a probability for binary data. Bins with no hazard risk get a 0
-    P_s=ds.groupby_bins(s_var,bins=bins).count()[s_var].fillna(0)/ds[s_var].time.size #occurence prob of synoptic bin. Bins that don't occur get a 0.
+    P_s=ds.groupby_bins(s_var,bins=bins).count()[s_var].fillna(0)/ds[s_var].size #occurence prob of synoptic bin. Bins that don't occur get a 0.
 
     return Ph_s, P_s
 
