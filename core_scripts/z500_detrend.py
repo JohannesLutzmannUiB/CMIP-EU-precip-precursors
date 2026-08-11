@@ -70,6 +70,9 @@ def main(args):
 
 
 def detrend_seasonal_cycle(x, era5_cycle, latmin, latmax):
+    if 'plev' in x.coords:
+        x = x.squeeze().drop_vars('plev')
+
     # Subset latitudes
     x = x.sel(lat = slice(latmin, latmax), ) #add longitude extend here
 
@@ -81,8 +84,8 @@ def detrend_seasonal_cycle(x, era5_cycle, latmin, latmax):
     xmean = xmean.assign_coords(year = xmean['time.year'], month = xmean['time.month']).set_index(time = ('year', 'month'))
     monthly_x = xmean.groupby('time').mean().unstack('time')
 
-    if 'plev' in monthly_x.coords:
-        monthly_x = monthly_x.drop_vars('plev')
+
+
 
     # Gaussian smoothing
     y = monthly_x.to_dataset('month').to_dataframe()
@@ -95,7 +98,7 @@ def detrend_seasonal_cycle(x, era5_cycle, latmin, latmax):
     x_detrended = stacked_x - z.sel(time = stacked_x.time)
     
 
-    x_detrended = x_detrended.reset_index('time')  # supprimer le MultiIndex
+    x_detrended = x_detrended.reset_index('time')  # delete the MultiIndex
     x_detrended = x_detrended.assign_coords(time = x.time)
 
     # Removing the stationary seasonal cycle and mean state (ERA5)
