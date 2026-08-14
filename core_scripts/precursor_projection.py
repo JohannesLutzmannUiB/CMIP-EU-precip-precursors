@@ -103,6 +103,9 @@ def load_input_field(args,v,v_in_file):
     data=xr.open_dataset(indir+filenames[0],
         chunks=dict(time=-1,lat=-1,lon=-1))[v_in_file].chunk('auto')
     
+    if 'plev' in data.dims:
+        data=data.squeeze('plev', drop=True) # Squeezing removes the plev dimension which is there only for some members.
+    
     return data
 
 def load_input_fields(args,name_dict):
@@ -315,12 +318,6 @@ var_name_dict={
     'v850':'va'
 }
 if __name__=='__main__':
-
-    #use multi-core for speed
-    cluster = LocalCluster(n_workers=4, memory_limit='16GiB')
-    client = Client(cluster)
-    print('Access dask dashboard: ', client.dashboard_link)
-    
     args = parse_args()
     if args.debug:
         decorate_all_functions(sys.modules[__name__], log_function_call)
@@ -332,6 +329,11 @@ if __name__=='__main__':
     else:
         pass
 
+    #use multi-core for speed
+    cluster = LocalCluster(n_workers=2, memory_limit='24GiB')
+    client = Client(cluster)
+    print('Access dask dashboard: ', client.dashboard_link)
+    
     #load precursor patterns and standardisation params
     # which ensure precursor index has mean 0 and std 1
     patterns,params=load_precursor_patterns_and_params(args)
