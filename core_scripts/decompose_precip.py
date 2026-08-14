@@ -113,6 +113,8 @@ def get_index_and_hazard_data(args):
                 a2=[]
                 for s in args.seasons:
                     da=xr.open_dataarray(f'{dir}{s}_region{r}.nc')
+                    if 'plev' in da.coords:
+                        da = da.drop_vars('plev') # Removes the plev coordinate which is there only for some members.
                     a2.append(da.assign_coords(season=s))
                 a1.append(xr.concat(a2, 'season', coords='different', compat='equals', join='outer').assign_coords(region_id=r))
 
