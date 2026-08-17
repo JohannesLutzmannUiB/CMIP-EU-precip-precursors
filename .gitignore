@@ -5,5 +5,6 @@ indices
 test/
 *.log
 *.txt
+*.out
 *__pycache__*
 .virtual_documents

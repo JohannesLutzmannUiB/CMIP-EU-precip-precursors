@@ -3,23 +3,22 @@
 ### We're assuming you're in the right dir already to run the core_scripts
 
 
-model="UKESM1-0-LL"
+model="MPI-ESM1-2-HR"
 
-for i in {1..10}; do
-   python precip_projection.py --model $model --member r${i}i1p1f1 --experiment historical
-donecd 
+# for i in {1..10}; do
+#    python precip_projection.py --model $model --member r${i}i1p1f1 --experiment historical --overwrite
+# done
 
 
-for i in {1..10}; do
-    python precursor_projection.py --model $model --member r${i}i1p1f1 --experiment historical --variables z500 u850 v850
-done
+# for i in {1..10}; do
+#     python precursor_projection.py --model $model --member r${i}i1p1f1 --experiment historical --variables z500 u850 v850 --overwrite
+# # done
 
-for i in {1..10}; do
-    python precip_projection.py --model $model --member r${i}i1p1f1 --experiment ssp370
-    python z500_detrend.py --model $model --member r${i}i1p1f1 --experiment ssp370
-    python precursor_projection.py --model $model --member r${i}i1p1f1 --experiment ssp370 --variables z500_detrend u850 v850
-
-done
+# for i in {1..10}; do
+#     python precip_projection.py --model $model --member r${i}i1p1f1 --experiment ssp370 --overwrite
+#     python z500_detrend.py --model $model --member r${i}i1p1f1 --experiment ssp370
+#     python precursor_projection.py --model $model --member r${i}i1p1f1 --experiment ssp370 --variables z500_detrend u850 v850 --overwrite
+# done
 
 chmod -R g+rw /Data/gfi/share/ModData/CMIP_EU_Precip_Precursors/raw/${model}/z500_detrend/ssp370/
 chmod -R g+rw /Data/skd/projects/global/cmip6_precursors/outputs/indices/${model}/
