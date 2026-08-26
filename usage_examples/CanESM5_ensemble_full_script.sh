@@ -27,7 +27,8 @@ chmod -R g+rw /Data/skd/projects/global/cmip6_precursors/outputs/indices/${model
 # decomposition computed using full ensemble estimate
 bash run_decomposition.sh --model $model \
 --members "r1i1p1f1 r2i1p1f1 r3i1p1f1 r4i1p1f1 r5i1p1f1 r6i1p1f1 r7i1p1f1 r8i1p1f1 r9i1p1f1 r10i1p1f1 r11i1p1f1" \
---future_members "r1i1p1f1 r2i1p1f1 r3i1p1f1 r4i1p1f1 r5i1p1f1 r6i1p1f1 r7i1p1f1 r8i1p1f1 r9i1p1f1 r10i1p1f1"
+--future_members "r1i1p1f1 r2i1p1f1 r3i1p1f1 r4i1p1f1 r5i1p1f1 r6i1p1f1 r7i1p1f1 r8i1p1f1 r9i1p1f1 r10i1p1f1" \
+--overwrite
 
 
 #individual member-to-member decomposition:
@@ -53,7 +54,7 @@ for i in {1..10}; do
     --ref_model ERA5 --hist_model $model --future_model $model \
     --hist_experiment historical --future_experiment ssp370 \
     --hist_member ens --future_member r${i}i1p1f1 \
-    --savedir $SAVEDIR
+    --savedir $SAVEDIR --overwrite
 done
 
 chmod -R g+rw /Data/skd/projects/global/cmip6_precursors/outputs/decompositions/${model}/

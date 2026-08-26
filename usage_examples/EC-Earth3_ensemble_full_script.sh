@@ -26,8 +26,12 @@ chmod -R g+rw /Data/skd/projects/global/cmip6_precursors/outputs/indices/${model
 
 # decomposition computed using full ensemble estimate
 bash run_decomposition.sh --model $model \
---members "r101i1p1f1 r102i1p1f1 r103i1p1f1 r104i1p1f1 r105i1p1f1 r106i1p1f1 r107i1p1f1 r108i1p1f1 r109i1p1f1 r110i1p1f1 r111i1p1f1 r112i1p1f1 r113i1p1f1 r114i1p1f1 r115i1p1f1 r116i1p1f1 r117i1p1f1 r118i1p1f1 r119i1p1f1 r120i1p1f1 r121i1p1f1 r122i1p1f1 r123i1p1f1 r124i1p1f1 r125i1p1f1 r126i1p1f1 r127i1p1f1" \
---future_members "r101i1p1f1 r102i1p1f1 r103i1p1f1 r104i1p1f1 r105i1p1f1 r106i1p1f1 r107i1p1f1 r108i1p1f1 r109i1p1f1 r115i1p1f1 r116i1p1f1 r117i1p1f1 r118i1p1f1 r119i1p1f1 r120i1p1f1"
+--members "r101i1p1f1 r102i1p1f1 r103i1p1f1 r104i1p1f1 r105i1p1f1 r106i1p1f1 r107i1p1f1 r108i1p1f1 \
+r109i1p1f1 r110i1p1f1 r111i1p1f1 r112i1p1f1 r113i1p1f1 r114i1p1f1 r115i1p1f1 r116i1p1f1 r117i1p1f1 \
+r118i1p1f1 r119i1p1f1 r120i1p1f1 r121i1p1f1 r122i1p1f1 r123i1p1f1 r124i1p1f1 r125i1p1f1 r126i1p1f1 r127i1p1f1" \
+--future_members "r101i1p1f1 r102i1p1f1 r103i1p1f1 r104i1p1f1 r105i1p1f1 r106i1p1f1 r107i1p1f1 \
+r108i1p1f1 r109i1p1f1 r115i1p1f1 r116i1p1f1 r117i1p1f1 r118i1p1f1 r119i1p1f1 r120i1p1f1" \
+--overwrite
 
 
 #individual member-to-member decomposition:
@@ -53,7 +57,7 @@ for i in {101..109} {115..120}; do
     --ref_model ERA5 --hist_model $model --future_model $model \
     --hist_experiment historical --future_experiment ssp370 \
     --hist_member ens --future_member r${i}i1p1f1 \
-    --savedir $SAVEDIR
+    --savedir $SAVEDIR --overwrite
 done
 
 chmod -R g+rw /Data/skd/projects/global/cmip6_precursors/outputs/decompositions/${model}/
