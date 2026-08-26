@@ -18,6 +18,7 @@ HISTEXP="historical" #optional as --histexp
 FUTUREEXP="ssp370" #optional as --futureexp, if "none" is passed, will skip future decomposition and just compute historical terms
 HISTPERIOD=(1979 2014) # optional as --histperiod
 FUTUREPERIOD=(2060 2100) # optional as --futureperiod
+OVERWRITE=false # optional as --overwrite
 ENSNAME="ens"
 HISTVARIABLES="z500 u850 v850"
 FUTUREVARIABLES="z500_detrend u850 v850"
@@ -38,6 +39,7 @@ while [[ "$#" -gt 0 ]]; do
         --futureexp) FUTUREEXP="$2"; shift ;;
         --histperiod) HISTPERIOD=($2); shift ;;
         --futureperiod) FUTUREPERIOD=($2); shift ;;
+        --overwrite) OVERWRITE=true ;;
         *) echo "Unknown parameter passed: $1"; exit 1 ;;
     esac
     shift
@@ -46,6 +48,12 @@ done
 #if FUTMEMBERS is still the default of "", set it to the same as MEMBERS:
 if [ -z "$FUTMEMBERS" ]; then
   FUTMEMBERS=${MEMBERS[@]}
+fi
+
+# if OVERWRITE is true
+overwrite_arg=""
+if $OVERWRITE; then
+    overwrite_arg="--overwrite"
 fi
 
 ##We assume the ERA5 data is in place, but this can be uncommented to re-run / extend as needed. 
@@ -67,7 +75,7 @@ python decompose_precip.py --model $MODEL --experiment $HISTEXP --time_period ${
  --ref_pca $REFPCA \
  --ref_bins $REFBINS \
  --ref_thresh $REFTHRESH \
- #--overwrite 
+ $overwrite_arg
 
 #not if futureexp is "none":
 if [ "$FUTUREEXP" != "none" ]; then 
@@ -80,7 +88,7 @@ if [ "$FUTUREEXP" != "none" ]; then
     --ref_pca $REFPCA \
     --ref_bins $REFBINS \
     --ref_thresh $REFTHRESH \
-    #--overwrite 
+    $overwrite_arg
 
     #if len of MEMBERS is greater than 1, set  members to ENSNAME:
     if [ ${#MEMBERS[@]} -gt 1 ]; then
