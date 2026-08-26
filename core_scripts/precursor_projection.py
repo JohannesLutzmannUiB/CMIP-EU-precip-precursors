@@ -336,7 +336,7 @@ if __name__=='__main__':
         pass
 
     #use multi-core for speed
-    cluster = LocalCluster(n_workers=2, memory_limit='24GiB')
+    cluster = LocalCluster(n_workers=2, memory_limit='32GiB')
     client = Client(cluster)
     print('Access dask dashboard: ', client.dashboard_link)
     
